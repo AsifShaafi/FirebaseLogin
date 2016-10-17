@@ -30,6 +30,16 @@ import com.google.firebase.auth.UserProfileChangeRequest;
  */
 
 public class FirebaseMethods implements GoogleApiClient.OnConnectionFailedListener {
+
+    /***********************************************************************************
+        this is a class containing the general methods used for firebase authentication
+     this class initializes all the primary variables like firebase auth, firebase auth listener
+     and so on..as we have to use this methods quite often in the app, it's useful and
+     easy to get them in one place.in this class their is sign in, sign up methods that
+     is called when ever needed from the activities
+    ************************************************************************************/
+
+
     private static final String TAG = "FirebaseMethods";
 
     public static final int RC_SIGN_IN = 9001;
@@ -46,6 +56,16 @@ public class FirebaseMethods implements GoogleApiClient.OnConnectionFailedListen
         mActivity = activity;
 
         mFirebaseAuth = FirebaseAuth.getInstance();
+
+        /***********************************************************************************
+         when user tries to login or sign up with google then google api starts an intent
+         which is expected to return a value. the intent(called by google api) 1st checks if
+         there are any google user already signed up with the app or not.. if such user is not
+         found then a pick up account appears and user selects a account. then the intent send
+         back a result to calling activity(from where the call was made.in this case this activity,
+         and this happens in both cases-signed up user/new user) and the activity checks for the
+         request code and then do the next part as needed.
+         ************************************************************************************/
 
         mAuthListener = new FirebaseAuth.AuthStateListener() {
             @Override
@@ -111,6 +131,14 @@ public class FirebaseMethods implements GoogleApiClient.OnConnectionFailedListen
         email = email.trim();
         password = password.trim();
 
+        /***********************************************************************************
+         the onCompleteListener listens for the sign in/up process of firebase and returns
+         a result set, named as task. if the sign up/in is successful then the result/task
+         returns a success boolean. other wise it send a exception containing the error of
+         the process. this method also calls the auth listener automatically when it's work
+         is done.
+         ************************************************************************************/
+
         mFirebaseAuth.createUserWithEmailAndPassword(email, password)
                 .addOnCompleteListener(mActivity, new OnCompleteListener<AuthResult>() {
                     @Override
@@ -127,6 +155,9 @@ public class FirebaseMethods implements GoogleApiClient.OnConnectionFailedListen
                         } else if (task.isSuccessful()) {
                             FirebaseUser user = mFirebaseAuth.getCurrentUser();
 
+                            //firebase creates a account with email and password. it doesn't take any other information in
+                            //the first place. so when the user is created we need to update the users name by using
+                            // firebase's update method, we can also update any information of user using this
                             updateUserName(user, name);
 
                             UserDetails details =
@@ -165,6 +196,14 @@ public class FirebaseMethods implements GoogleApiClient.OnConnectionFailedListen
 
         email = email.trim();
         password = password.trim();
+
+        /***********************************************************************************
+         the onCompleteListener listens for the sign in/up process of firebase and returns
+         a result set, named as task. if the sign up/in is successful then the result/task
+         returns a success boolean. other wise it send a exception containing the error of
+         the process. this method also calls the auth listener automatically when it's work
+         is done.
+         ************************************************************************************/
 
         mFirebaseAuth.signInWithEmailAndPassword(email, password)
                 .addOnCompleteListener(mActivity, new OnCompleteListener<AuthResult>() {
@@ -233,6 +272,13 @@ public class FirebaseMethods implements GoogleApiClient.OnConnectionFailedListen
         dialog.show();
     }
 
+    /***********************************************************************************
+        this method triggers the intent with the help of google api to get the account
+     for firebase and if no account is already associated with the firebase,then pop ups
+     a picker to choose the account for signing up and requests for a result back from the
+     intent and waits for it. the result is then handled in the activity form where this
+     method was called
+    ************************************************************************************/
     static void signInWithGoogle(AppCompatActivity activity, GoogleApiClient googleApiClient) {
 
         Toast.makeText(activity, "signing in function", Toast.LENGTH_SHORT).show();

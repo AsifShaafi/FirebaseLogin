@@ -47,32 +47,52 @@ public class SignUpActivity extends AppCompatActivity implements GoogleApiClient
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_sign_up);
 
+        //adding the home/back button on the action_bar
         ActionBar actionBar = getSupportActionBar();
         if (actionBar != null) actionBar.setDisplayHomeAsUpEnabled(true);
 
-        mFirebaseAuth = FirebaseAuth.getInstance();
+        mFirebaseAuth = FirebaseAuth.getInstance(); //getting the firebase instance of the app
 
-        // Configure Google Sign In
+        //  google configure starts
+        /***********************************************************************************
+         Configure Google Sign In. setting the google api for sign in and then requesting
+         for tokenId for the user using the firebase server client id. this token is later
+         used to get an unique id of firebase to keep the track of the user. later on the token
+         id will be used to verify the user
+        ************************************************************************************/
         GoogleSignInOptions gso = new GoogleSignInOptions.Builder(GoogleSignInOptions.DEFAULT_SIGN_IN)
                 .requestIdToken(getString(R.string.default_web_client_id))
                 .requestEmail()
                 .build();
 
+        //setting up the api
         mGoogleApiClient = new GoogleApiClient.Builder(this)
                 .enableAutoManage(this , this /* OnConnectionFailedListener */)
                 .addApi(Auth.GOOGLE_SIGN_IN_API, gso)
                 .build();
 
+        //google configure ends
+
+        //customizing the google default sign in button..start
 
         btnSignUpEmail = (Button) findViewById(R.id.sign_up_btn_email);
         btnSignUpGoogle = (SignInButton) findViewById(R.id.sign_up_btn_google);
         btnSignUpGoogle.setSize(SignInButton.SIZE_WIDE);
         btnSignUpGoogle.setColorScheme(SignInButton.COLOR_DARK);
+
+        //customizing ends
+
+
         btnSignUpGoogle.setOnClickListener(this);
 
         btnSignUpEmail.setOnClickListener(this);
 
-
+        /***********************************************************************************
+            this auth listener checks if there is a user already loggin or not. if loggin then
+         get the user and go to user page. this lister is also called when a user is successfully
+         signed in or sign up in the app. it gets automatically called. in apps onStart method
+         this listener gets attached with the firebase auth
+        ************************************************************************************/
         mAuthListener = new FirebaseAuth.AuthStateListener() {
             @Override
             public void onAuthStateChanged(@NonNull FirebaseAuth firebaseAuth) {
@@ -105,12 +125,16 @@ public class SignUpActivity extends AppCompatActivity implements GoogleApiClient
     @Override
     public void onStart() {
         super.onStart();
+
+        //attaching the listener
         mFirebaseAuth.addAuthStateListener(mAuthListener);
     }
 
     @Override
     public void onStop() {
         super.onStop();
+
+        //detaching the listener
         if (mAuthListener != null) {
             mFirebaseAuth.removeAuthStateListener(mAuthListener);
         }
@@ -125,13 +149,15 @@ public class SignUpActivity extends AppCompatActivity implements GoogleApiClient
         return super.onOptionsItemSelected(item);
     }
 
-    private void signIn() {
-
-        Toast.makeText(this, "signing in function", Toast.LENGTH_SHORT).show();
-        Intent signInIntent = Auth.GoogleSignInApi.getSignInIntent(mGoogleApiClient);
-        startActivityForResult(signInIntent, RC_SIGN_IN);
-    }
-
+    /***********************************************************************************
+        when user tries to login or sign up with google then google api starts an intent
+     which is expected to return a value. the intent(called by google api) 1st checks if
+     there are any google user already signed up with the app or not.. if such user is not
+     found then a pick up account appears and user selects a account. then the intent send
+     back a result to calling activity(from where the call was made.in this case this activity,
+     and this happens in both cases-signed up user/new user) and the activity checks for the
+     request code and then do the next part as needed.
+    ************************************************************************************/
     @Override
     public void onActivityResult(int requestCode, int resultCode, Intent data) {
         super.onActivityResult(requestCode, resultCode, data);
@@ -140,17 +166,13 @@ public class SignUpActivity extends AppCompatActivity implements GoogleApiClient
 
         // Result returned from launching the Intent from GoogleSignInApi.getSignInIntent(...);
         if (requestCode == RC_SIGN_IN) {
-            GoogleSignInResult result = Auth.GoogleSignInApi.getSignInResultFromIntent(data);
 
-            Log.d(TAG, "onActivityResult: result is: " + result.isSuccess());
+            //getting the result from the data send back to the activity
+            GoogleSignInResult result = Auth.GoogleSignInApi.getSignInResultFromIntent(data);
 
             if (result.isSuccess()) {
                 // Google Sign In was successful, authenticate with Firebase
                 GoogleSignInAccount account = result.getSignInAccount();
-
-                Log.d(TAG, "onActivityResult: name: " + account.getDisplayName());
-                Log.d(TAG, "onActivityResult: email: " + account.getEmail());
-                Log.d(TAG, "firebaseAuthWithGoogle:" + account.getId());
 
                 UserDetails userDetails = new UserDetails(account.getDisplayName(), account.getEmail(), account.getPhotoUrl());
 
@@ -160,18 +182,28 @@ public class SignUpActivity extends AppCompatActivity implements GoogleApiClient
 
                 startActivity(intent);
 
+                //assigning the user to the firebase user list for future use as a signed up user
                 firebaseAuthWithGoogle(account);
             } else {
-                // Google Sign In failed, update UI appropriately
-                // ...
+                // Google Sign In failed
+                FirebaseMethods.showErrorDialog(this, "Sign up failed! try again!");
             }
         }
     }
 
     private void firebaseAuthWithGoogle(GoogleSignInAccount acct) {
-        Log.d(TAG, "firebaseAuthWithGoogle:" + acct.getId() + " + " + acct.getIdToken());
+        //getting the credential for firebase using the user token id..
 
         AuthCredential credential = GoogleAuthProvider.getCredential(acct.getIdToken(), null);
+
+        /***********************************************************************************
+            the onCompleteListener listens for the sign in/up process of firebase and returns
+         a result set, named as task. if the sign up/in is successful then the result/task
+         returns a success boolean. other wise it send a exception containing the error of
+         the process. this method also calls the auth listener automatically when it's work
+         is done.
+        ************************************************************************************/
+
         mFirebaseAuth.signInWithCredential(credential)
                 .addOnCompleteListener(this, new OnCompleteListener<AuthResult>() {
                     @Override
@@ -183,8 +215,7 @@ public class SignUpActivity extends AppCompatActivity implements GoogleApiClient
                         // signed in user can be handled in the listener.
                         if (!task.isSuccessful()) {
                             Log.w(TAG, "signInWithCredential", task.getException());
-                            Toast.makeText(SignUpActivity.this, "Authentication failed.",
-                                    Toast.LENGTH_SHORT).show();
+                            FirebaseMethods.showErrorDialog(SignUpActivity.this, task.getException().getLocalizedMessage());
                         }
                         // ...
                     }
@@ -199,7 +230,7 @@ public class SignUpActivity extends AppCompatActivity implements GoogleApiClient
             case R.id.sign_up_btn_google:
 
                 Toast.makeText(this, "signing up with Google", Toast.LENGTH_SHORT).show();
-                signIn();
+                FirebaseMethods.signInWithGoogle(this,mGoogleApiClient);
 
                 break;
 
